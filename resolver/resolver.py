@@ -1,6 +1,41 @@
 import re
 from gevent.server import StreamServer
 
+import exceptions
+
+
+class Client(object):
+    def __init__(self, socket):
+        self.socket = socket
+        self.fp = socket.makefile()
+
+    def send(self, s):
+        self.fp.write(s)
+        self.fp.flush()
+
+    def send_line(self, s):
+        self.send(s + '\n')
+
+    def readline(self):
+        return self.fp.readline()
+
+    def fail(self, ex):
+        self.send_line(ex.message)
+        print self.socket.getpeername()
+        raise ex
+
+    def ensure(self, proposition, ex):
+        if not proposition:
+            self.fail(ex)
+
+    def block_and_disconnect(self):
+        # TODO doc exception
+        self.fp.read(1)
+        self.socket.close()
+
+    def disconnect(self):
+        self.socket.close()
+
 
 class Resolver(object):
 
@@ -16,53 +51,55 @@ class Resolver(object):
     def handle(self, socket, address):
         print "connection from %s:%s" % (socket, address)
 
-        fp = socket.makefile()
+        client = Client(socket)
 
-        fp.write("resolver ready\n")
-        fp.flush()
+        client.send_line("resolver ready")
 
-        line = fp.readline().strip()
+        line = client.readline().strip()
 
-        action, param_str = split_one_word_strip(line)
+        action, param_str = first_word_and_rest(line)
+
+        invalid_action_fn = lambda: client.fail(exceptions.InvalidAction())
 
         {
-            'pub': lambda: self.client_pub(fp, socket, param_str),
-            'query': lambda: self.client_query(fp, socket, param_str),
-            'list': lambda: self.client_list(fp, socket, param_str),
-        }[action]()
+            'pub': lambda: self.client_pub(client, param_str),
+            'query': lambda: self.client_query(client, param_str),
+            'list': lambda: self.client_list(client, param_str),
+        }.get(action, invalid_action_fn)()
 
-    def client_pub(self, fp, socket, param_str):
-        ensure_client(fp, ' ' in  param_str, "malfomred '[key] [value]'")
+    def client_pub(self, client, param_str):
+        client.ensure(' ' in  param_str, exceptions.MalformedPub())
 
-        key, val = split_one_word_strip(param_str)
+        key, val = first_word_and_rest(param_str)
 
-        ensure_client(fp, is_key(key), 'invalid key')
-        ensure_client(fp, is_value(val), 'invalid value')
+        client.ensure(is_key(key), exceptions.InvalidKey())
+        client.ensure(is_value(val), exceptions.InvalidValue())
 
         self.pub(key, val)
 
+        # The client is now connected. We keep the connection open
+        # until it disconnects (or sends something).
         try:
-            fp.read(1)
-            socket.close()
+            client.block_and_disconnect()
         finally:
-            # Unsubscribe whatever happens and then throw the exception
+            # Unsubscribe whatever happens and then re-raise the exception
             self.unpub(key)
 
-    def client_query(self, fp, socket, param_str):
+    def client_query(self, client, param_str):
         key = param_str.strip()
 
-        ensure_client(fp, is_key(key), 'invalid key')
+        client.ensure(is_key(key), exceptions.InvalidKey())
 
         val = self.query(key)
 
-        ensure_client(fp, val is not None, 'key not found')
+        client.ensure(val is not None, exceptions.KeyNotFound())
 
-        fp.write(key + '\n')
-        socket.close()
+        client.send_line(val)
+
+        client.disconnect()
 
     def client_list(self, fp, socket, param_str):
         raise Exception('not implemented')
-
 
     def pub(self, key, val):
         print "pub %s" % {key: val}
@@ -76,24 +113,11 @@ class Resolver(object):
         return self.mapping.get(key)
 
 
-def split_one_word_strip(line):
-    return map(str.strip, line.split(' ', 1))
-
-
-def ensure_client(fp, proposition, e):
-    if not proposition:
-        ex, msg = mk_exception_and_msg(e)
-        fp.write("%s\n" % msg)
-        fp.flush()
-        raise ex
-
-
-# Exceptions
-
-class ResolverClientException(Exception):
-    pass
-
-class ()
+def first_word_and_rest(line):
+    # str.split always returns at least one element:
+    # ''.split(' ', 1) == ['']
+    split = map(str.strip, line.split(' ', 1))
+    return split if len(split) > 1 else split + ['']
 
 
 KEY_RE = re.compile(r'\w+(\.\w+)*')  # At xx, xx.ab and so on
@@ -105,10 +129,3 @@ def is_key(key):
 
 def is_value(value):
     return True
-
-
-def mk_exception_and_msg(e):
-    if type(e) is str:
-        return (Exception(e), e)
-    else:
-        return (e, e.message)
