@@ -6,22 +6,23 @@ import exceptions
 
 class Client(object):
     def __init__(self, socket):
-        self.socket = socket
-        self.fp = socket.makefile()
+        self._socket = socket
+        self._fp = socket.makefile()
+        # Docs claim socket.getpeername() does not work on all platforms.
+        self.peername = socket.getpeername()
 
     def send(self, s):
-        self.fp.write(s)
-        self.fp.flush()
+        self._fp.write(s)
+        self._fp.flush()
 
     def send_line(self, s):
         self.send(s + '\n')
 
     def readline(self):
-        return self.fp.readline()
+        return self._fp.readline()
 
     def fail(self, ex):
         self.send_line(ex.message)
-        print self.socket.getpeername()
         raise ex
 
     def ensure(self, proposition, ex):
@@ -30,11 +31,11 @@ class Client(object):
 
     def block_and_disconnect(self):
         # TODO doc exception
-        self.fp.read(1)
-        self.socket.close()
+        self._fp.read(1)
+        self._socket.close()
 
     def disconnect(self):
-        self.socket.close()
+        self._socket.close()
 
 
 class Resolver(object):
@@ -45,16 +46,20 @@ class Resolver(object):
         self.mapping = {}
 
     def serve_forever(self):
-        server = StreamServer((self.host, self.port), self.handle)
+        server = StreamServer((self.host, self.port), self.on_connection)
         server.serve_forever()
 
-    def handle(self, socket, address):
+    def on_connection(self, socket, address):
         print "connection from %s:%s" % (socket, address)
 
         client = Client(socket)
+        try:
+            client.send_line("resolver ready")
+            self.handle_client(client)
+        except exceptions.ClientException as e:
+            print "%s - %s" % (client.peername, e.message)
 
-        client.send_line("resolver ready")
-
+    def handle_client(self, client):
         line = client.readline().strip()
 
         action, param_str = first_word_and_rest(line)
@@ -75,7 +80,10 @@ class Resolver(object):
         client.ensure(is_key(key), exceptions.InvalidKey())
         client.ensure(is_value(val), exceptions.InvalidValue())
 
-        self.pub(key, val)
+        ok = self.pub(key, val)
+
+        if not ok:
+            client.fail(exceptions.KeyInUse())
 
         # The client is now connected. We keep the connection open
         # until it disconnects (or sends something).
@@ -98,12 +106,18 @@ class Resolver(object):
 
         client.disconnect()
 
-    def client_list(self, fp, socket, param_str):
-        raise Exception('not implemented')
+    def client_list(self, client, param_str):
+        # TODO use param_str for custom query / prefix selection
+        client.send_line(self.list())
+        client.disconnect()
 
     def pub(self, key, val):
+        if key in self.mapping:
+            print "pub denied %s (exists)" % {key: val}
+            return False
         print "pub %s" % {key: val}
         self.mapping[key] = val
+        return True
 
     def unpub(self, key):
         print "unpub %s" % key
@@ -111,6 +125,9 @@ class Resolver(object):
 
     def query(self, key):
         return self.mapping.get(key)
+
+    def list(self):
+        return ' '.join(sorted(self.mapping.keys()))
 
 
 def first_word_and_rest(line):

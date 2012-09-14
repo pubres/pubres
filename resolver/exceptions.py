@@ -34,3 +34,8 @@ class MalformedPub(ClientException):
 class KeyNotFound(ClientException):
     def __init__(self):
         super(KeyNotFound, self).__init__('key not found')
+
+
+class KeyInUse(ClientException):
+    def __init__(self):
+        super(KeyInUse, self).__init__('key in use')
