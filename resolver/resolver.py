@@ -60,6 +60,7 @@ class Resolver(object):
             print "%s - %s" % (client.peername, e.message)
 
     def handle_client(self, client):
+        # TODO timeout
         line = client.readline().strip()
 
         action, param_str = first_word_and_rest(line)
