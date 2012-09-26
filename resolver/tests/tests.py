@@ -1,10 +1,8 @@
-import sys
 import socket
 import threading
+from nose.tools import *
 
 HOST, PORT = 'localhost', 5555
-
-# TODO use testing framework instead of asserts, e.g. nose
 
 
 class ServerException(Exception):
@@ -89,35 +87,32 @@ def query(key):
     return data.strip()
 
 
-def test_pub_query_1():
-
-    # subscribe key
-    with pub('key1', 'val1'):
-
-        # key should be there
-        assert query('key1') == 'val1'
-
-        # other key should not be there
-        try:
-            query('uknownkey')
-        except QueryFailed as e:
-            assert e.server_message == 'key not found'
-
-    # key should be gone
+def assert_key_not_found(fn):
     try:
-        query('key1')
+        fn()
     except QueryFailed as e:
-        assert e.server_message == 'key not found'
+        assert_equal(e.server_message, 'key not found')
 
 
-def main():
-    test_pub_query_1()
-    print "all tests passed"
+def test_subscribe():
+    with pub('key1', 'val1'):
+        pass
 
 
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print
-        sys.exit(1)
+def test_query():
+    with pub('key1', 'val1'):
+        assert_equal(query('key1'), 'val1')
+
+
+def test_unsubscribe():
+    with pub('key1', 'val1'):
+        pass
+    assert_key_not_found(lambda: query('key1'))
+
+
+def test_pub_query_unsubscribe():
+    with pub('key1', 'val1'):
+        assert_equal(query('key1'), 'val1')
+        assert_key_not_found(lambda: query('uknownkey'))
+
+    assert_key_not_found(lambda: query('key1'))
