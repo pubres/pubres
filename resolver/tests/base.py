@@ -1,6 +1,6 @@
 import socket
 import threading
-from nose.tools import *
+from nose.tools import assert_equal
 
 HOST, PORT = 'localhost', 5555
 
@@ -87,32 +87,12 @@ def query(key):
     return data.strip()
 
 
+def assert_key_val(key, val):
+    assert_equal(query(key), val)
+
+
 def assert_key_not_found(fn):
     try:
         fn()
     except QueryFailed as e:
         assert_equal(e.server_message, 'key not found')
-
-
-def test_subscribe():
-    with pub('key1', 'val1'):
-        pass
-
-
-def test_query():
-    with pub('key1', 'val1'):
-        assert_equal(query('key1'), 'val1')
-
-
-def test_unsubscribe():
-    with pub('key1', 'val1'):
-        pass
-    assert_key_not_found(lambda: query('key1'))
-
-
-def test_pub_query_unsubscribe():
-    with pub('key1', 'val1'):
-        assert_equal(query('key1'), 'val1')
-        assert_key_not_found(lambda: query('uknownkey'))
-
-    assert_key_not_found(lambda: query('key1'))
