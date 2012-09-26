@@ -111,6 +111,7 @@ class Server(object):
 
     def client_list(self, client, param_str):
         # TODO use param_str for custom query / prefix selection
+        client.send_line('ok')
         client.send_line(self.list())
         client.disconnect()
 
