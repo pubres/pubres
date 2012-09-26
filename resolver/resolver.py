@@ -89,6 +89,7 @@ class Resolver(object):
         # The client is now connected. We keep the connection open
         # until it disconnects (or sends something).
         try:
+            client.send_line('ok')
             client.block_and_disconnect()
         finally:
             # Unsubscribe whatever happens and then re-raise the exception
@@ -103,6 +104,7 @@ class Resolver(object):
 
         client.ensure(val is not None, exceptions.KeyNotFound())
 
+        client.send_line('ok')
         client.send_line(val)
 
         client.disconnect()
