@@ -38,7 +38,7 @@ class Client(object):
         self._socket.close()
 
 
-class Resolver(object):
+class Server(object):
 
     def __init__(self, host, port):
         self.host = host
@@ -54,7 +54,7 @@ class Resolver(object):
 
         client = Client(socket)
         try:
-            client.send_line("resolver ready")
+            client.send_line("pubres ready")
             self.handle_client(client)
         except exceptions.ClientException as e:
             print "%s - %s" % (client.peername, e.message)

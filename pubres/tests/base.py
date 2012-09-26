@@ -34,7 +34,7 @@ def connect(host=HOST, port=PORT):
     s.connect((HOST, PORT))
     greeting = s.recv(128)
     if 'ready' not in greeting:
-        raise Exception('resolver did not tell it is ready')
+        raise Exception('pubres server did not say it is ready')
     return s
 
 
