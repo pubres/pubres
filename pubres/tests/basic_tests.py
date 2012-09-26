@@ -24,3 +24,21 @@ def test_pub_query_unsubscribe():
         assert_key_not_found(lambda: query('uknownkey'))
 
     assert_key_not_found(lambda: query('key1'))
+
+
+def test_list_empty():
+    assert_list([])
+    assert_equal(list_str(), '')
+
+
+def test_list():
+    with pub('key1', 'val1'), pub('key2', 'val2'):
+        assert_list(['key1', 'key2'])
+        assert_equal(list_str(), 'key1 key2')
+
+
+def test_list_unpub():
+    with pub('key1', 'val1'), pub('key2', 'val2'):
+        pass
+    assert_list([])
+    assert_equal(list_str(), '')

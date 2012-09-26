@@ -87,6 +87,23 @@ def query(key):
     return data.strip()
 
 
+def list_str():
+    s = connect()
+    s.sendall('list\n')
+    answer = s.recv(128)
+    if 'ok' not in answer:
+        raise QueryFailed(key, answer)
+
+    data = s.recv(4096)  # TODO tune
+    s.close()
+    return data.strip()
+
+
+# TODO this is not a good function name in Python
+def list():
+    return map(str.strip, list_str().split())
+
+
 def assert_key_val(key, val):
     assert_equal(query(key), val)
 
@@ -96,3 +113,7 @@ def assert_key_not_found(fn):
         fn()
     except QueryFailed as e:
         assert_equal(e.server_message, 'key not found')
+
+
+def assert_list(expected_keys_set):
+    assert_equal(list(), sorted(expected_keys_set))
