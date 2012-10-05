@@ -1,9 +1,11 @@
+import logging
 import re
 from gevent.server import StreamServer
 
 import exceptions
 
-# TODO use logging
+
+logger = logging.getLogger('pubres')
 
 
 class Client(object):
@@ -52,14 +54,14 @@ class Server(object):
         server.serve_forever()
 
     def on_connection(self, socket, address):
-        print "connection from %s:%s" % (socket, address)
+        logger.debug("connection from %s", address)
 
         client = Client(socket)
         try:
             client.send_line("pubres ready")
             self.handle_client(client)
         except exceptions.ClientException as e:
-            print "%s - %s" % (client.peername, e.message)
+            logger.warning("%s - %s", client.peername, e.message)
 
     def handle_client(self, client):
         # TODO timeout
@@ -120,14 +122,14 @@ class Server(object):
 
     def pub(self, key, val):
         if key in self.mapping:
-            print "pub denied %s (exists)" % {key: val}
+            logger.info("pub denied %s (exists)", {key: val})
             return False
-        print "pub %s" % {key: val}
+        logger.info("pub %s", {key: val})
         self.mapping[key] = val
         return True
 
     def unpub(self, key):
-        print "unpub %s" % key
+        logger.info("unpub %s", key)
         del self.mapping[key]
 
     def query(self, key):
