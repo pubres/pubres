@@ -3,6 +3,8 @@ from gevent.server import StreamServer
 
 import exceptions
 
+# TODO use logging
+
 
 class Client(object):
     def __init__(self, socket):
