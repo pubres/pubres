@@ -44,7 +44,7 @@ class Client(object):
 
 class Server(object):
 
-    def __init__(self, host, port):
+    def __init__(self, host='localhost', port=5555):
         self.host = host
         self.port = port
         self.mapping = {}
