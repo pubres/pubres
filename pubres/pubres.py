@@ -113,8 +113,9 @@ class Server(object):
 
     def client_list(self, client, param_str):
         # TODO use param_str for custom query / prefix selection
+        l = self.list()
         client.send_line('ok')
-        client.send_line(self.list())
+        client.send_line(l)
         client.disconnect()
 
     def pub(self, key, val):
