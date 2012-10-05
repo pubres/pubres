@@ -21,7 +21,7 @@ class Client(object):
         self.send(s + '\n')
 
     def readline(self):
-        return self._fp.readline()
+        return self._fp.readline()  # TODO length limit
 
     def fail(self, ex):
         self.send_line(ex.message)
