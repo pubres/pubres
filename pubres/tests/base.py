@@ -5,6 +5,12 @@ from nose.tools import assert_equal
 HOST, PORT = 'localhost', 5555
 
 
+# General notes:
+# - We use socket.makefile().readline() instead of socket.recv()
+#   because recv() doesn't guarantee to actually read all data in
+#   the first call.
+
+
 class ServerException(Exception):
     """An exception signalling that the server said something went wrong.
     """
@@ -47,8 +53,9 @@ class pub(object):
         self.running = True
 
         self.sock = connect()
+        self.fp = self.sock.makefile()
         self.sock.sendall('pub %s %s\n' % (self.key, self.val))
-        answer = self.sock.recv(128)
+        answer = self.fp.readline(128)
         if 'ok' not in answer:
             raise PubFailed(key, val, answer)
 
@@ -78,11 +85,12 @@ class pub(object):
 def query(key):
     s = connect()
     s.sendall('query %s\n' % key)
-    answer = s.recv(128)
+    fp = s.makefile()
+    answer = fp.readline(128)
     if 'ok' not in answer:
         raise QueryFailed(key, answer)
 
-    data = s.recv(1024)
+    data = fp.readline(1024)
     s.close()
     return data.strip()
 
@@ -90,11 +98,12 @@ def query(key):
 def list_str():
     s = connect()
     s.sendall('list\n')
-    answer = s.recv(128)
+    fp = s.makefile()
+    answer = fp.readline(128)
     if 'ok' not in answer:
         raise QueryFailed(key, answer)
 
-    data = s.recv(4096)  # TODO tune
+    data = fp.readline(4096)  # TODO tune
     s.close()
     return data.strip()
 
