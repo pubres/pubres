@@ -1,16 +1,19 @@
 all: test
 
-.PHONY: all test test_repeated coverage
+.PHONY: all test test_repeated run_coverage coverage
 
 test:
-	nosetests
-
-test_repeated:
 	./tests.py
 
-coverage:
-	nosetests --with-coverage --cover-package=pubres
+test_repeated:
+	./tests.py --repeated
 
-coverage_html:
-	rm -rf cover/
-	nosetests --with-coverage --cover-html --cover-package=pubres
+run_coverage:
+	python-coverage run --source=. tests.py
+
+coverage: run_coverage
+	python-coverage report
+
+coverage_html: run_coverage
+	rm -rf htmlcov/
+	python-coverage html
