@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 import re
 from gevent.server import StreamServer
 
@@ -6,6 +7,7 @@ import exceptions
 
 __all__ = [
     'Server',
+    'BackgroundServer',
 ]
 
 logger = logging.getLogger('pubres')
@@ -45,6 +47,24 @@ class Client(object):
         self._socket.close()
 
 
+class CallbackStreamServer(StreamServer):
+    """A StreamServer that calls a callback when it finished starting
+    so that code that starts it using serve_forever doesn't have to
+    wait some arbitrary time for the socket to get bound.
+    """
+    def __init__(self, *args, **kwargs):
+        # Extract the started_callback and don't pass it to the StreamServer constructor
+        other_kwargs = kwargs.copy()
+        self._started_callback = other_kwargs.pop('started_callback', None)
+        super(CallbackStreamServer, self).__init__(*args, **other_kwargs)
+
+    def pre_start(self, *args, **kwargs):
+        super(CallbackStreamServer, self).pre_start(*args, **kwargs)
+
+        if self._started_callback:
+            self._started_callback()
+
+
 class Server(object):
 
     def __init__(self, host='localhost', port=5555):
@@ -52,8 +72,8 @@ class Server(object):
         self.port = port
         self.mapping = {}
 
-    def serve_forever(self):
-        server = StreamServer((self.host, self.port), self.on_connection)
+    def serve_forever(self, started_callback=None):
+        server = CallbackStreamServer((self.host, self.port), self.on_connection, started_callback=started_callback)
         server.serve_forever()
 
     def on_connection(self, socket, address):
@@ -140,6 +160,55 @@ class Server(object):
 
     def list(self):
         return ' '.join(sorted(self.mapping.keys()))
+
+
+class BackgroundServer(Server):
+    """A pubres server that forks off to the background.
+    Can be started with start(), stopped with stop(),
+    and used in a with statement.
+    """
+    def __init__(self, *args, **kwargs):
+        super(BackgroundServer, self).__init__(*args, **kwargs)
+        self._server_process = None
+        # Just for fail-early assertions
+        self._running = False  # TODO use exceptions
+
+    def start(self):
+        """Starts the server in a multiprocessing.Process.
+        Blocks until the server is accepting connections so that
+        callers don't need to wait before using it.
+        """
+        assert not self._running
+        started_event = multiprocessing.Event()
+
+        def work():
+            self.serve_forever(started_callback=started_event.set)
+
+        self._server_process = multiprocessing.Process(target=work)
+        self._server_process.start()
+
+        # Wait for the server to be started
+        # Use this wait() loop to terminate early when the _server_process
+        # fails with an error; if that happens, the started_event would not
+        # be set and we would wait forever.
+        while not started_event.is_set() and self._server_process.is_alive():
+            started_event.wait(0.01)
+
+        self._running = True
+
+    def stop(self):
+        """Stops the server by sending SIGTERM to its Process.
+        """
+        assert self._running
+        # SIGTERM the server thread
+        self._server_process.terminate()
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.stop()
 
 
 def first_word_and_rest(line):
