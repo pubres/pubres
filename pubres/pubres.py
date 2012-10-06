@@ -4,6 +4,9 @@ from gevent.server import StreamServer
 
 import exceptions
 
+__all__ = [
+    'Server',
+]
 
 logger = logging.getLogger('pubres')
 

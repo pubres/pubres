@@ -1,1 +1,1 @@
-from pubres import Server
+from pubres import *
