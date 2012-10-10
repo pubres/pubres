@@ -2,7 +2,7 @@
 
 import argparse
 import time
-import nose
+import pytest
 import sys
 import logging
 import multiprocessing
@@ -25,7 +25,7 @@ def make_server_and_run_tests(test_suite_repetitions=100, nose_args=[]):
         assert server_process.is_alive()
 
         # Run the test suite
-        if not nose.run(argv=nose_argv):
+        if pytest.main():
             sys.exit(1)
 
     assert server_process.is_alive()

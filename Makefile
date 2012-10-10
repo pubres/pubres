@@ -3,17 +3,17 @@ all: test
 .PHONY: all test test_repeated run_coverage coverage
 
 test:
-	./tests.py
+	# Run only fast tests
+	py.test -k-slow
 
 test_repeated:
-	./tests.py --repeated
+	# Run all tests
+	py.test
 
-run_coverage:
-	python-coverage run --source=. tests.py
-
-coverage: run_coverage
-	python-coverage report
+coverage:
+	# Requires pytest-cov
+	py.test -k-slow --cov pubres
 
 coverage_html: run_coverage
-	rm -rf htmlcov/
-	python-coverage html
+	# Requires pytest-cov
+	py.test -k-slow --cov pubres --cov-report html
