@@ -1,7 +1,7 @@
 import logging
 import multiprocessing
 import re
-from gevent.server import StreamServer
+import gevent.server
 
 import exceptions
 
@@ -47,7 +47,7 @@ class Client(object):
         self._socket.close()
 
 
-class CallbackStreamServer(StreamServer):
+class CallbackStreamServer(gevent.server.StreamServer):
     """A StreamServer that calls a callback when it finished starting
     so that code that starts it using serve_forever doesn't have to
     wait some arbitrary time for the socket to get bound.
@@ -59,6 +59,7 @@ class CallbackStreamServer(StreamServer):
         super(CallbackStreamServer, self).__init__(*args, **other_kwargs)
 
     def pre_start(self, *args, **kwargs):
+        # See http://www.gevent.org/gevent.baseserver.html#gevent.baseserver.BaseServer.pre_start
         super(CallbackStreamServer, self).pre_start(*args, **kwargs)
 
         if self._started_callback:
@@ -171,7 +172,7 @@ class BackgroundServer(Server):
         super(BackgroundServer, self).__init__(*args, **kwargs)
         self._server_process = None
         # Just for fail-early assertions
-        self._running = False  # TODO use exceptions
+        self._running = False  # TODO use exceptions instead of assertions
 
     def start(self):
         """Starts the server in a multiprocessing.Process.
