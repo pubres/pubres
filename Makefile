@@ -12,8 +12,10 @@ test_repeated:
 
 coverage:
 	# Requires pytest-cov
+	rm -f .coverage
 	py.test -k-slow --cov pubres
 
 coverage_html: run_coverage
 	# Requires pytest-cov
+	rm -rf .coverage htmlcov/
 	py.test -k-slow --cov pubres --cov-report html
