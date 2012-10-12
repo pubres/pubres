@@ -1,7 +1,9 @@
 import logging
 import multiprocessing
 import re
+import gevent
 import gevent.server
+import gevent.event
 
 import exceptions
 
@@ -72,10 +74,31 @@ class Server(object):
         self.host = host
         self.port = port
         self.mapping = {}
+        self._mp_server_stop_event = multiprocessing.Event()
 
-    def serve_forever(self, started_callback=None):
-        server = CallbackStreamServer((self.host, self.port), self.on_connection, started_callback=started_callback)
-        server.serve_forever()
+    def run_until_stop(self, started_callback=None, poll_time=0.001):
+        """Starts the server.
+        Blocks until stop() is called (possibly from another process).
+
+        Does a gevent.sleep(1ms) loop as actually wait()ing for a
+        multiprocessing.Event would block all gevent activity,
+        so we have to poll.
+
+        This sleeping time can be overridden with the poll_time parameter
+        (in seconds).
+        """
+        gevent_server = CallbackStreamServer((self.host, self.port), self.on_connection, started_callback=started_callback)
+        gevent_server.start()
+
+        while not self._mp_server_stop_event.is_set():
+            gevent.sleep(poll_time)
+
+        gevent_server.stop()
+
+    def stop(self):
+        """Stops the server. Does not block.
+        """
+        self._mp_server_stop_event.set()
 
     def on_connection(self, socket, address):
         logger.debug("connection from %s", address)
@@ -178,12 +201,15 @@ class BackgroundServer(Server):
         """Starts the server in a multiprocessing.Process.
         Blocks until the server is accepting connections so that
         callers don't need to wait before using it.
+
+        The server must not be running already; must only be called once.
         """
-        assert not self._running
+        # Server should not be running
+        assert self._server_process is None
         started_event = multiprocessing.Event()
 
         def work():
-            self.serve_forever(started_callback=started_event.set)
+            self.run_until_stop(started_callback=started_event.set)
 
         self._server_process = multiprocessing.Process(target=work)
         self._server_process.start()
@@ -197,12 +223,37 @@ class BackgroundServer(Server):
 
         self._running = True
 
-    def stop(self):
-        """Stops the server by sending SIGTERM to its Process.
+    def stop(self, timeout=None):
+        """Stops the server process.
+
+        If timeout is given, returns True iff the server exited within
+        the timeout.
+        If timeout is None, the server process is guaranteed to exit
+        (possibly waiting indefinitely) and True is returned.
+
+        Must only be called after having called start();
+        must not be called after the server exited (it returned True).
+
+        Note that when calling this, the server might already have exited
+        (e.g. erratically.)
         """
         assert self._running
-        # SIGTERM the server thread
-        self._server_process.terminate()
+
+        # Stop server (does not block)
+        super(BackgroundServer, self).stop()
+
+        # Wait for server process to finish
+        # This is critical for coverage; if we don't do this,
+        # the whole programm will usually exit before the coverage
+        # data of the process can be written
+        self._server_process.join(timeout)
+
+        if self._server_process.is_alive():
+            return False
+        else:
+            # Guard against repeated calls when server has exited
+            self._running = False
+            return True
 
     def __enter__(self):
         self.start()

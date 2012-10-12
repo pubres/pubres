@@ -39,7 +39,7 @@ def main():
 
     setup_logging(level=args.loglevel)
 
-    pubres.Server(host=args.host, port=args.port).serve_forever()
+    pubres.Server(host=args.host, port=args.port).run_until_stop()
 
 
 if __name__ == '__main__':
