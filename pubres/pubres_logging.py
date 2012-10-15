@@ -4,6 +4,10 @@ import logging
 # to not conflict with the stdlib logging module.
 
 
+# The official logger name of pubres.
+PUBRES_LOGGER_NAME = 'pubres'
+
+
 def setup_logging(level):
     # Check if the log level string is one defined in logging
     numeric_level = getattr(logging, level.upper())
@@ -12,7 +16,7 @@ def setup_logging(level):
 
     ## Logger, handler and formatter
 
-    logger = logging.getLogger('pubres')
+    logger = logging.getLogger(PUBRES_LOGGER_NAME)
     logger.setLevel(numeric_level)
 
     handler = logging.StreamHandler()
