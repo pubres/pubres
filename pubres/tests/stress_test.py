@@ -6,7 +6,7 @@ import pubres
 
 
 @pytest.mark.slow
-def test_multi_server():
+def test_multi_server():  # pragma: no cover
     for s in xrange(10):
         with pubres.BackgroundServer():
 

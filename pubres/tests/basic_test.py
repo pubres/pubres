@@ -74,18 +74,19 @@ def test_key_in_use():
     with pub('key1', 'val1'):
         with pytest.raises(PubFailed) as ex:
             with pub('key1', 'val1_2'):
-                pass  # Exception will raise here
+                # Exception will raise here
+                pass  # pragma: no cover
         assert ex.value.server_message == 'key in use'
 
 
-def all_simple_tests():
+def all_simple_tests():  # pragma: no cover
     is_simple = lambda n: n.startswith('test_simple_')
     return functions_of_module(__name__, is_simple)
 
 
 # Runs all other "test_"s via inspection.
 @pytest.mark.slow
-def test_all_repeated():
+def test_all_repeated():  # pragma: no cover
     """Runs all other tests defined in this module, many times.
     """
     simple_tests = all_simple_tests()

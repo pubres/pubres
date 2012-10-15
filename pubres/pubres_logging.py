@@ -18,7 +18,7 @@ def setup_logging(level=logging.INFO, handler=None):
     # Check if the log level string is one defined in logging
     numeric_level = getattr(logging, level.upper()) if isinstance(level, str) else level
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % level)
+        raise ValueError('Invalid log level: %s' % level)  # pragma: no cover
 
     ## Logger, handler and formatter
 

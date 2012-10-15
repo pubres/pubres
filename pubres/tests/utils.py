@@ -2,7 +2,7 @@ import sys
 import types
 
 
-def functions_of_module(module_name, filter_fn=lambda x: True):
+def functions_of_module(module_name, filter_fn=lambda x: True):  # pragma: no cover
     """Returns all functions (the function objects) of the given module name.
 
     The module is looked up in sys.modules.
