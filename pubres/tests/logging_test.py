@@ -8,6 +8,12 @@ from pubres.pubres_logging import setup_logging
 from .base import *
 
 
+# Tests if the logging works.
+# Uses a custom logging handler that collects log messages into a list
+# and then asserts that they are there.
+# Care is taken about the server actually running in a different process.
+
+
 class MultiprocessingQueueStreamHandler(logging.handlers.BufferingHandler):
     """A logging handler that pushes the getMessage() of every
     LogRecord into a multiprocessing.Queue.
