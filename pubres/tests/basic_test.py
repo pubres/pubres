@@ -62,6 +62,21 @@ def test_simple_list_unpub():
     assert_equal(list_str(), '')
 
 
+def test_invalid_action():
+    s = connect()
+    s.sendall('someunknowncommand\n')
+    fp = s.makefile()
+    answer = fp.readline(128)
+    assert answer == "invalid action\n"
+
+
+def test_key_in_use():
+    with pub('key1', 'val1'):
+        with pytest.raises(PubFailed) as ex:
+            with pub('key1', 'val1_2'):
+                pass  # Exception will raise here
+        assert ex.value.server_message == 'key in use'
+
 
 def all_simple_tests():
     is_simple = lambda n: n.startswith('test_simple_')
